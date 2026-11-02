@@ -1,0 +1,2829 @@
+[
+ {
+  "id": "flash-flaky",
+  "name": "Flash, metrics outage",
+  "task": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now.",
+  "model": "deepseek-flash",
+  "note": "The first metrics call is made to fail, so the agent has to recover.",
+  "createdAt": "2026-11-02T04:02:41.058Z",
+  "source": "recorded",
+  "spans": [
+   {
+    "id": "run-1",
+    "parentId": null,
+    "kind": "agent",
+    "name": "agent.run",
+    "start": 0,
+    "end": 8546,
+    "status": "ok",
+    "input": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now.",
+    "model": "deepseek-flash",
+    "output": "**Root cause:** payments-api deploy v2.14.0 at 14:12 (jun) — \"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\". The pool collapsed from ~34 connections to 5, so requests queue for connections.\n\n**Evidence:**\n- Deploy log 14:12: `started v2.14.0, db pool max=5`\n- 14:14 warn: `db pool saturated: 5/5 in use, 41 waiting`\n- `db_connections_in_use` flatlines at exactly 5 from 14:15 onward (was 33–36)\n- payments-api p95: 125ms → 2410ms (14:20) → ~3900ms; errors 0% → 12%\n- checkout-web p95: 320ms → 2840ms (14:20) → ~4300ms — downstream propagation\n- Runbook confirms: latency up with flat DB load = pool exhaustion; Postgres max_connections 200, so 50/service is safe.\n\n**Immediate action:** Roll back payments-api to the prior version (or set `POOL_MAX=50` and restart). Rollback is fastest and safest. Then verify pool returns to ~34 and p95 recovers."
+   },
+   {
+    "id": "step-2",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 1",
+    "start": 1,
+    "end": 1652,
+    "status": "ok"
+   },
+   {
+    "id": "llm-3",
+    "parentId": "step-2",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 1,
+    "end": 1461,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     }
+    ],
+    "output": {
+     "text": "I'll start by gathering the lay of the land.",
+     "tool_calls": [
+      {
+       "name": "list_services",
+       "arguments": "{}"
+      },
+      {
+       "name": "get_deploys",
+       "arguments": "{}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 649,
+     "output": 46,
+     "cached": 0
+    }
+   },
+   {
+    "id": "tool-4",
+    "parentId": "step-2",
+    "kind": "tool",
+    "name": "list_services",
+    "start": 1461,
+    "end": 1559,
+    "status": "ok",
+    "input": {},
+    "output": [
+     "checkout-web",
+     "payments-api",
+     "postgres-payments",
+     "redis-sessions",
+     "cdn"
+    ]
+   },
+   {
+    "id": "tool-5",
+    "parentId": "step-2",
+    "kind": "tool",
+    "name": "get_deploys",
+    "start": 1461,
+    "end": 1652,
+    "status": "ok",
+    "input": {},
+    "output": [
+     {
+      "at": "13:32",
+      "service": "checkout-web",
+      "version": "v5.8.1",
+      "author": "dana",
+      "summary": "Copy tweak on the order review page"
+     },
+     {
+      "at": "14:04",
+      "service": "cdn",
+      "version": "config-881",
+      "author": "marek",
+      "summary": "Lower image cache TTL from 24h to 12h"
+     },
+     {
+      "at": "14:12",
+      "service": "payments-api",
+      "version": "v2.14.0",
+      "author": "jun",
+      "summary": "Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)"
+     }
+    ]
+   },
+   {
+    "id": "step-6",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 2",
+    "start": 1652,
+    "end": 3623,
+    "status": "ok"
+   },
+   {
+    "id": "llm-7",
+    "parentId": "step-6",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 1652,
+    "end": 3193,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll start by gathering the lay of the land.",
+      "tool_calls": [
+       {
+        "id": "call_00_z7u03dy4qCKJUUOCImZi8237",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_01_ZiTZ7iQqmI29MGjrcKew6965",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_z7u03dy4qCKJUUOCImZi8237",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_ZiTZ7iQqmI29MGjrcKew6965",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     }
+    ],
+    "output": {
+     "text": "A suspicious deploy at 14:12. Let me check metrics across the chain.",
+     "tool_calls": [
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"db_connections_in_use\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 865,
+     "output": 229,
+     "cached": 640
+    }
+   },
+   {
+    "id": "tool-8",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 3193,
+    "end": 3622,
+    "status": "error",
+    "input": {
+     "service": "checkout-web",
+     "metric": "latency_p95_ms"
+    },
+    "error": "metrics backend timed out after 5000ms; retry"
+   },
+   {
+    "id": "tool-9",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 3193,
+    "end": 3622,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "latency_p95_ms"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "latency_p95_ms",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 120
+      },
+      {
+       "t": "14:05",
+       "value": 118
+      },
+      {
+       "t": "14:10",
+       "value": 125
+      },
+      {
+       "t": "14:15",
+       "value": 540
+      },
+      {
+       "t": "14:20",
+       "value": 2410
+      },
+      {
+       "t": "14:25",
+       "value": 3780
+      },
+      {
+       "t": "14:30",
+       "value": 3990
+      },
+      {
+       "t": "14:35",
+       "value": 3850
+      },
+      {
+       "t": "14:40",
+       "value": 3920
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-10",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 3193,
+    "end": 3622,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "db_connections_in_use"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "db_connections_in_use",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 34
+      },
+      {
+       "t": "14:05",
+       "value": 33
+      },
+      {
+       "t": "14:10",
+       "value": 36
+      },
+      {
+       "t": "14:15",
+       "value": 5
+      },
+      {
+       "t": "14:20",
+       "value": 5
+      },
+      {
+       "t": "14:25",
+       "value": 5
+      },
+      {
+       "t": "14:30",
+       "value": 5
+      },
+      {
+       "t": "14:35",
+       "value": 5
+      },
+      {
+       "t": "14:40",
+       "value": 5
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-11",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 3193,
+    "end": 3623,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "error_rate_pct"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "error_rate_pct",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 0
+      },
+      {
+       "t": "14:05",
+       "value": 0
+      },
+      {
+       "t": "14:10",
+       "value": 0
+      },
+      {
+       "t": "14:15",
+       "value": 0.9
+      },
+      {
+       "t": "14:20",
+       "value": 5.1
+      },
+      {
+       "t": "14:25",
+       "value": 11.2
+      },
+      {
+       "t": "14:30",
+       "value": 12.4
+      },
+      {
+       "t": "14:35",
+       "value": 11.9
+      },
+      {
+       "t": "14:40",
+       "value": 12.1
+      }
+     ]
+    }
+   },
+   {
+    "id": "step-12",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 3",
+    "start": 3623,
+    "end": 6072,
+    "status": "ok"
+   },
+   {
+    "id": "llm-13",
+    "parentId": "step-12",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 3623,
+    "end": 5309,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll start by gathering the lay of the land.",
+      "tool_calls": [
+       {
+        "id": "call_00_z7u03dy4qCKJUUOCImZi8237",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_01_ZiTZ7iQqmI29MGjrcKew6965",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_z7u03dy4qCKJUUOCImZi8237",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_ZiTZ7iQqmI29MGjrcKew6965",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     },
+     {
+      "role": "assistant",
+      "content": "A suspicious deploy at 14:12. Let me check metrics across the chain.",
+      "tool_calls": [
+       {
+        "id": "call_00_50lK67pHol7Hxjvb9TFF4310",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_01_h2ux3G6yKmFxEPhbFMuC1523",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_02_Q09pw5PZ54BtX1lV2JZG8531",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"db_connections_in_use\"}"
+        }
+       },
+       {
+        "id": "call_03_EsCqG7oZtIZsvyq82eXH3063",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_50lK67pHol7Hxjvb9TFF4310",
+      "content": "{\"error\":\"metrics backend timed out after 5000ms; retry\"}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_h2ux3G6yKmFxEPhbFMuC1523",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":120},{\"t\":\"14:05\",\"value\":118},{\"t\":\"14:10\",\"value\":125},{\"t\":\"14:15\",\"value\":540},{\"t\":\"14:20\",\"value\":2410},{\"t\":\"14:25\",\"value\":3780},{\"t\":\"14:30\",\"value\":3990},{\"t\":\"14:35\",\"value\":3850},{\"t\":\"14:40\",\"value\":3920}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_Q09pw5PZ54BtX1lV2JZG8531",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"db_connections_in_use\",\"points\":[{\"t\":\"14:00\",\"value\":34},{\"t\":\"14:05\",\"value\":33},{\"t\":\"14:10\",\"value\":36},{\"t\":\"14:15\",\"value\":5},{\"t\":\"14:20\",\"value\":5},{\"t\":\"14:25\",\"value\":5},{\"t\":\"14:30\",\"value\":5},{\"t\":\"14:35\",\"value\":5},{\"t\":\"14:40\",\"value\":5}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_EsCqG7oZtIZsvyq82eXH3063",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0},{\"t\":\"14:05\",\"value\":0},{\"t\":\"14:10\",\"value\":0},{\"t\":\"14:15\",\"value\":0.9},{\"t\":\"14:20\",\"value\":5.1},{\"t\":\"14:25\",\"value\":11.2},{\"t\":\"14:30\",\"value\":12.4},{\"t\":\"14:35\",\"value\":11.9},{\"t\":\"14:40\",\"value\":12.1}]}"
+     }
+    ],
+    "output": {
+     "text": "The DB connection pool dropped from ~34 to exactly 5 right after the 14:12 deploy. Let me retry the failed call and confirm with logs and the runbook.",
+     "tool_calls": [
+      {
+       "name": "get_metrics",
+       "arguments": "{\"metric\": \"latency_p95_ms\", \"service\": \"checkout-web\"}"
+      },
+      {
+       "name": "search_logs",
+       "arguments": "{\"service\": \"payments-api\", \"query\": \"pool\"}"
+      },
+      {
+       "name": "read_runbook",
+       "arguments": "{\"topic\": \"db-connection-exhaustion\"}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 1487,
+     "output": 177,
+     "cached": 1024
+    }
+   },
+   {
+    "id": "tool-14",
+    "parentId": "step-12",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 5309,
+    "end": 5730,
+    "status": "ok",
+    "input": {
+     "metric": "latency_p95_ms",
+     "service": "checkout-web"
+    },
+    "output": {
+     "service": "checkout-web",
+     "metric": "latency_p95_ms",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 310
+      },
+      {
+       "t": "14:05",
+       "value": 305
+      },
+      {
+       "t": "14:10",
+       "value": 320
+      },
+      {
+       "t": "14:15",
+       "value": 690
+      },
+      {
+       "t": "14:20",
+       "value": 2840
+      },
+      {
+       "t": "14:25",
+       "value": 4120
+      },
+      {
+       "t": "14:30",
+       "value": 4380
+      },
+      {
+       "t": "14:35",
+       "value": 4210
+      },
+      {
+       "t": "14:40",
+       "value": 4300
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-15",
+    "parentId": "step-12",
+    "kind": "tool",
+    "name": "search_logs",
+    "start": 5309,
+    "end": 6072,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "query": "pool"
+    },
+    "output": [
+     {
+      "at": "14:12",
+      "service": "payments-api",
+      "level": "info",
+      "msg": "started v2.14.0, db pool max=5"
+     },
+     {
+      "at": "14:14",
+      "service": "payments-api",
+      "level": "warn",
+      "msg": "db pool saturated: 5/5 in use, 41 waiting"
+     }
+    ]
+   },
+   {
+    "id": "tool-16",
+    "parentId": "step-12",
+    "kind": "tool",
+    "name": "read_runbook",
+    "start": 5309,
+    "end": 5449,
+    "status": "ok",
+    "input": {
+     "topic": "db-connection-exhaustion"
+    },
+    "output": "Symptoms: app latency up while database CPU and query times are flat or down; 'timeout acquiring connection' errors. Mitigation: roll back the service or raise its pool size. Postgres max_connections here is 200, so 50 per service is safe."
+   },
+   {
+    "id": "step-17",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 4",
+    "start": 6072,
+    "end": 8546,
+    "status": "ok"
+   },
+   {
+    "id": "llm-18",
+    "parentId": "step-17",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 6072,
+    "end": 8546,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll start by gathering the lay of the land.",
+      "tool_calls": [
+       {
+        "id": "call_00_z7u03dy4qCKJUUOCImZi8237",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_01_ZiTZ7iQqmI29MGjrcKew6965",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_z7u03dy4qCKJUUOCImZi8237",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_ZiTZ7iQqmI29MGjrcKew6965",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     },
+     {
+      "role": "assistant",
+      "content": "A suspicious deploy at 14:12. Let me check metrics across the chain.",
+      "tool_calls": [
+       {
+        "id": "call_00_50lK67pHol7Hxjvb9TFF4310",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_01_h2ux3G6yKmFxEPhbFMuC1523",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_02_Q09pw5PZ54BtX1lV2JZG8531",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"db_connections_in_use\"}"
+        }
+       },
+       {
+        "id": "call_03_EsCqG7oZtIZsvyq82eXH3063",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_50lK67pHol7Hxjvb9TFF4310",
+      "content": "{\"error\":\"metrics backend timed out after 5000ms; retry\"}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_h2ux3G6yKmFxEPhbFMuC1523",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":120},{\"t\":\"14:05\",\"value\":118},{\"t\":\"14:10\",\"value\":125},{\"t\":\"14:15\",\"value\":540},{\"t\":\"14:20\",\"value\":2410},{\"t\":\"14:25\",\"value\":3780},{\"t\":\"14:30\",\"value\":3990},{\"t\":\"14:35\",\"value\":3850},{\"t\":\"14:40\",\"value\":3920}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_Q09pw5PZ54BtX1lV2JZG8531",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"db_connections_in_use\",\"points\":[{\"t\":\"14:00\",\"value\":34},{\"t\":\"14:05\",\"value\":33},{\"t\":\"14:10\",\"value\":36},{\"t\":\"14:15\",\"value\":5},{\"t\":\"14:20\",\"value\":5},{\"t\":\"14:25\",\"value\":5},{\"t\":\"14:30\",\"value\":5},{\"t\":\"14:35\",\"value\":5},{\"t\":\"14:40\",\"value\":5}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_EsCqG7oZtIZsvyq82eXH3063",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0},{\"t\":\"14:05\",\"value\":0},{\"t\":\"14:10\",\"value\":0},{\"t\":\"14:15\",\"value\":0.9},{\"t\":\"14:20\",\"value\":5.1},{\"t\":\"14:25\",\"value\":11.2},{\"t\":\"14:30\",\"value\":12.4},{\"t\":\"14:35\",\"value\":11.9},{\"t\":\"14:40\",\"value\":12.1}]}"
+     },
+     {
+      "role": "assistant",
+      "content": "The DB connection pool dropped from ~34 to exactly 5 right after the 14:12 deploy. Let me retry the failed call and confirm with logs and the runbook.",
+      "tool_calls": [
+       {
+        "id": "call_00_cnMyQkKhcyG4Q9afxOBR5487",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"metric\": \"latency_p95_ms\", \"service\": \"checkout-web\"}"
+        }
+       },
+       {
+        "id": "call_01_dzT1zm9hlZUko76qVE9c8460",
+        "type": "function",
+        "function": {
+         "name": "search_logs",
+         "arguments": "{\"service\": \"payments-api\", \"query\": \"pool\"}"
+        }
+       },
+       {
+        "id": "call_02_HHQ6anFNANj87TQ60yxq0037",
+        "type": "function",
+        "function": {
+         "name": "read_runbook",
+         "arguments": "{\"topic\": \"db-connection-exhaustion\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_cnMyQkKhcyG4Q9afxOBR5487",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":310},{\"t\":\"14:05\",\"value\":305},{\"t\":\"14:10\",\"value\":320},{\"t\":\"14:15\",\"value\":690},{\"t\":\"14:20\",\"value\":2840},{\"t\":\"14:25\",\"value\":4120},{\"t\":\"14:30\",\"value\":4380},{\"t\":\"14:35\",\"value\":4210},{\"t\":\"14:40\",\"value\":4300}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_dzT1zm9hlZUko76qVE9c8460",
+      "content": "[{\"at\":\"14:12\",\"service\":\"payments-api\",\"level\":\"info\",\"msg\":\"started v2.14.0, db pool max=5\"},{\"at\":\"14:14\",\"service\":\"payments-api\",\"level\":\"warn\",\"msg\":\"db pool saturated: 5/5 in use, 41 waiting\"}]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_HHQ6anFNANj87TQ60yxq0037",
+      "content": "\"Symptoms: app latency up while database CPU and query times are flat or down; 'timeout acquiring connection' errors. Mitigation: roll back the service or raise its pool size. Postgres max_connections here is 200, so 50 per service is safe.\""
+     }
+    ],
+    "output": "**Root cause:** payments-api deploy v2.14.0 at 14:12 (jun) — \"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\". The pool collapsed from ~34 connections to 5, so requests queue for connections.\n\n**Evidence:**\n- Deploy log 14:12: `started v2.14.0, db pool max=5`\n- 14:14 warn: `db pool saturated: 5/5 in use, 41 waiting`\n- `db_connections_in_use` flatlines at exactly 5 from 14:15 onward (was 33–36)\n- payments-api p95: 125ms → 2410ms (14:20) → ~3900ms; errors 0% → 12%\n- checkout-web p95: 320ms → 2840ms (14:20) → ~4300ms — downstream propagation\n- Runbook confirms: latency up with flat DB load = pool exhaustion; Postgres max_connections 200, so 50/service is safe.\n\n**Immediate action:** Roll back payments-api to the prior version (or set `POOL_MAX=50` and restart). Rollback is fastest and safest. Then verify pool returns to ~34 and p95 recovers.",
+    "usage": {
+     "input": 1930,
+     "output": 282,
+     "cached": 1664
+    }
+   }
+  ]
+ },
+ {
+  "id": "pro-flaky",
+  "name": "Pro, metrics outage",
+  "task": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now.",
+  "model": "deepseek-v4-pro",
+  "note": "Same task and failure on the larger model. Compare it with the Flash run.",
+  "createdAt": "2026-11-02T04:02:56.256Z",
+  "source": "recorded",
+  "spans": [
+   {
+    "id": "run-1",
+    "parentId": null,
+    "kind": "agent",
+    "name": "agent.run",
+    "start": 0,
+    "end": 15197,
+    "status": "ok",
+    "input": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now.",
+    "model": "deepseek-v4-pro",
+    "output": "Root cause: the 14:12 deploy of `payments-api` v2.14.0 (author jun) changed the DB connection pool size from a hardcoded 50 to `POOL_MAX` defaulting to 5. Evidence: `db_connections_in_use` dropped from ~36 to 7 at 14:15, log shows \"db pool max=5\" and \"db pool saturated: 5/5 in use, 41 waiting\", while postgres CPU stayed flat (~10%) — classic connection exhaustion, not DB load.\n\nImmediate action: roll back `payments-api` to v2.13.x (or set `POOL_MAX=50` and redeploy). Postgres max_connections is 200, so 50 is safe."
+   },
+   {
+    "id": "step-2",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 1",
+    "start": 0,
+    "end": 1680,
+    "status": "ok"
+   },
+   {
+    "id": "llm-3",
+    "parentId": "step-2",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 0,
+    "end": 1575,
+    "status": "ok",
+    "model": "deepseek-v4-pro",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     }
+    ],
+    "output": {
+     "text": "I'll investigate the checkout latency spike. Let me start by gathering evidence.",
+     "tool_calls": [
+      {
+       "name": "list_services",
+       "arguments": "{}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 658,
+     "output": 42,
+     "cached": 0
+    }
+   },
+   {
+    "id": "tool-4",
+    "parentId": "step-2",
+    "kind": "tool",
+    "name": "list_services",
+    "start": 1575,
+    "end": 1680,
+    "status": "ok",
+    "input": {},
+    "output": [
+     "checkout-web",
+     "payments-api",
+     "postgres-payments",
+     "redis-sessions",
+     "cdn"
+    ]
+   },
+   {
+    "id": "step-5",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 2",
+    "start": 1680,
+    "end": 5355,
+    "status": "ok"
+   },
+   {
+    "id": "llm-6",
+    "parentId": "step-5",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 1680,
+    "end": 4933,
+    "status": "ok",
+    "model": "deepseek-v4-pro",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll investigate the checkout latency spike. Let me start by gathering evidence.",
+      "tool_calls": [
+       {
+        "id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     }
+    ],
+    "output": {
+     "tool_calls": [
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"checkout-web\", \"metric\": \"error_rate_pct\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"postgres-payments\", \"metric\": \"db_connections_in_use\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"redis-sessions\", \"metric\": \"cache_hit_pct\"}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 732,
+     "output": 331,
+     "cached": 640
+    }
+   },
+   {
+    "id": "tool-7",
+    "parentId": "step-5",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 4933,
+    "end": 5355,
+    "status": "error",
+    "input": {
+     "service": "checkout-web",
+     "metric": "latency_p95_ms"
+    },
+    "error": "metrics backend timed out after 5000ms; retry"
+   },
+   {
+    "id": "tool-8",
+    "parentId": "step-5",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 4933,
+    "end": 5355,
+    "status": "ok",
+    "input": {
+     "service": "checkout-web",
+     "metric": "error_rate_pct"
+    },
+    "output": {
+     "service": "checkout-web",
+     "metric": "error_rate_pct",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 0.1
+      },
+      {
+       "t": "14:05",
+       "value": 0.1
+      },
+      {
+       "t": "14:10",
+       "value": 0.1
+      },
+      {
+       "t": "14:15",
+       "value": 0.4
+      },
+      {
+       "t": "14:20",
+       "value": 3.2
+      },
+      {
+       "t": "14:25",
+       "value": 6.8
+      },
+      {
+       "t": "14:30",
+       "value": 7.4
+      },
+      {
+       "t": "14:35",
+       "value": 7.1
+      },
+      {
+       "t": "14:40",
+       "value": 7.2
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-9",
+    "parentId": "step-5",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 4933,
+    "end": 5355,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "latency_p95_ms"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "latency_p95_ms",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 120
+      },
+      {
+       "t": "14:05",
+       "value": 118
+      },
+      {
+       "t": "14:10",
+       "value": 125
+      },
+      {
+       "t": "14:15",
+       "value": 540
+      },
+      {
+       "t": "14:20",
+       "value": 2410
+      },
+      {
+       "t": "14:25",
+       "value": 3780
+      },
+      {
+       "t": "14:30",
+       "value": 3990
+      },
+      {
+       "t": "14:35",
+       "value": 3850
+      },
+      {
+       "t": "14:40",
+       "value": 3920
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-10",
+    "parentId": "step-5",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 4933,
+    "end": 5355,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "error_rate_pct"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "error_rate_pct",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 0
+      },
+      {
+       "t": "14:05",
+       "value": 0
+      },
+      {
+       "t": "14:10",
+       "value": 0
+      },
+      {
+       "t": "14:15",
+       "value": 0.9
+      },
+      {
+       "t": "14:20",
+       "value": 5.1
+      },
+      {
+       "t": "14:25",
+       "value": 11.2
+      },
+      {
+       "t": "14:30",
+       "value": 12.4
+      },
+      {
+       "t": "14:35",
+       "value": 11.9
+      },
+      {
+       "t": "14:40",
+       "value": 12.1
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-11",
+    "parentId": "step-5",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 4933,
+    "end": 5355,
+    "status": "ok",
+    "input": {
+     "service": "postgres-payments",
+     "metric": "db_connections_in_use"
+    },
+    "output": {
+     "service": "postgres-payments",
+     "metric": "db_connections_in_use",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 36
+      },
+      {
+       "t": "14:05",
+       "value": 35
+      },
+      {
+       "t": "14:10",
+       "value": 38
+      },
+      {
+       "t": "14:15",
+       "value": 7
+      },
+      {
+       "t": "14:20",
+       "value": 7
+      },
+      {
+       "t": "14:25",
+       "value": 7
+      },
+      {
+       "t": "14:30",
+       "value": 7
+      },
+      {
+       "t": "14:35",
+       "value": 7
+      },
+      {
+       "t": "14:40",
+       "value": 7
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-12",
+    "parentId": "step-5",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 4933,
+    "end": 5355,
+    "status": "ok",
+    "input": {
+     "service": "redis-sessions",
+     "metric": "cache_hit_pct"
+    },
+    "output": {
+     "service": "redis-sessions",
+     "metric": "cache_hit_pct",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 98
+      },
+      {
+       "t": "14:05",
+       "value": 98
+      },
+      {
+       "t": "14:10",
+       "value": 98
+      },
+      {
+       "t": "14:15",
+       "value": 98
+      },
+      {
+       "t": "14:20",
+       "value": 98
+      },
+      {
+       "t": "14:25",
+       "value": 98
+      },
+      {
+       "t": "14:30",
+       "value": 98
+      },
+      {
+       "t": "14:35",
+       "value": 98
+      },
+      {
+       "t": "14:40",
+       "value": 98
+      }
+     ]
+    }
+   },
+   {
+    "id": "step-13",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 3",
+    "start": 5355,
+    "end": 8412,
+    "status": "ok"
+   },
+   {
+    "id": "llm-14",
+    "parentId": "step-13",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 5355,
+    "end": 7978,
+    "status": "ok",
+    "model": "deepseek-v4-pro",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll investigate the checkout latency spike. Let me start by gathering evidence.",
+      "tool_calls": [
+       {
+        "id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+       {
+        "id": "call_00_wgDKxc4mj68dm4SRCh656241",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_01_Cl9dQRxA8yyJkzdbxeAx9195",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"error_rate_pct\"}"
+        }
+       },
+       {
+        "id": "call_02_jWcng4rnDeyAim0nCM4r7622",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_03_aV29Pe9aFL7gdmyxOo595205",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+        }
+       },
+       {
+        "id": "call_04_4OAAlp6T3jEvTeMLLcCG3782",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"postgres-payments\", \"metric\": \"db_connections_in_use\"}"
+        }
+       },
+       {
+        "id": "call_05_Qe08CGx2G6PX7Sc4GbRX0401",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"redis-sessions\", \"metric\": \"cache_hit_pct\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_wgDKxc4mj68dm4SRCh656241",
+      "content": "{\"error\":\"metrics backend timed out after 5000ms; retry\"}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_Cl9dQRxA8yyJkzdbxeAx9195",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0.1},{\"t\":\"14:05\",\"value\":0.1},{\"t\":\"14:10\",\"value\":0.1},{\"t\":\"14:15\",\"value\":0.4},{\"t\":\"14:20\",\"value\":3.2},{\"t\":\"14:25\",\"value\":6.8},{\"t\":\"14:30\",\"value\":7.4},{\"t\":\"14:35\",\"value\":7.1},{\"t\":\"14:40\",\"value\":7.2}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_jWcng4rnDeyAim0nCM4r7622",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":120},{\"t\":\"14:05\",\"value\":118},{\"t\":\"14:10\",\"value\":125},{\"t\":\"14:15\",\"value\":540},{\"t\":\"14:20\",\"value\":2410},{\"t\":\"14:25\",\"value\":3780},{\"t\":\"14:30\",\"value\":3990},{\"t\":\"14:35\",\"value\":3850},{\"t\":\"14:40\",\"value\":3920}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_aV29Pe9aFL7gdmyxOo595205",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0},{\"t\":\"14:05\",\"value\":0},{\"t\":\"14:10\",\"value\":0},{\"t\":\"14:15\",\"value\":0.9},{\"t\":\"14:20\",\"value\":5.1},{\"t\":\"14:25\",\"value\":11.2},{\"t\":\"14:30\",\"value\":12.4},{\"t\":\"14:35\",\"value\":11.9},{\"t\":\"14:40\",\"value\":12.1}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_04_4OAAlp6T3jEvTeMLLcCG3782",
+      "content": "{\"service\":\"postgres-payments\",\"metric\":\"db_connections_in_use\",\"points\":[{\"t\":\"14:00\",\"value\":36},{\"t\":\"14:05\",\"value\":35},{\"t\":\"14:10\",\"value\":38},{\"t\":\"14:15\",\"value\":7},{\"t\":\"14:20\",\"value\":7},{\"t\":\"14:25\",\"value\":7},{\"t\":\"14:30\",\"value\":7},{\"t\":\"14:35\",\"value\":7},{\"t\":\"14:40\",\"value\":7}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_05_Qe08CGx2G6PX7Sc4GbRX0401",
+      "content": "{\"service\":\"redis-sessions\",\"metric\":\"cache_hit_pct\",\"points\":[{\"t\":\"14:00\",\"value\":98},{\"t\":\"14:05\",\"value\":98},{\"t\":\"14:10\",\"value\":98},{\"t\":\"14:15\",\"value\":98},{\"t\":\"14:20\",\"value\":98},{\"t\":\"14:25\",\"value\":98},{\"t\":\"14:30\",\"value\":98},{\"t\":\"14:35\",\"value\":98},{\"t\":\"14:40\",\"value\":98}]}"
+     }
+    ],
+    "output": {
+     "text": "Interesting - payments-api latency spiked at 14:15-14:20, and db_connections_in_use dropped from ~36 to 7 at 14:15. Let me retry the checkout latency and check deploys.",
+     "tool_calls": [
+      {
+       "name": "get_metrics",
+       "arguments": "{\"metric\": \"latency_p95_ms\", \"service\": \"checkout-web\"}"
+      },
+      {
+       "name": "get_deploys",
+       "arguments": "{}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"metric\": \"cpu_pct\", \"service\": \"postgres-payments\"}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 1706,
+     "output": 182,
+     "cached": 1024
+    }
+   },
+   {
+    "id": "tool-15",
+    "parentId": "step-13",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 7978,
+    "end": 8412,
+    "status": "ok",
+    "input": {
+     "metric": "latency_p95_ms",
+     "service": "checkout-web"
+    },
+    "output": {
+     "service": "checkout-web",
+     "metric": "latency_p95_ms",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 310
+      },
+      {
+       "t": "14:05",
+       "value": 305
+      },
+      {
+       "t": "14:10",
+       "value": 320
+      },
+      {
+       "t": "14:15",
+       "value": 690
+      },
+      {
+       "t": "14:20",
+       "value": 2840
+      },
+      {
+       "t": "14:25",
+       "value": 4120
+      },
+      {
+       "t": "14:30",
+       "value": 4380
+      },
+      {
+       "t": "14:35",
+       "value": 4210
+      },
+      {
+       "t": "14:40",
+       "value": 4300
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-16",
+    "parentId": "step-13",
+    "kind": "tool",
+    "name": "get_deploys",
+    "start": 7978,
+    "end": 8163,
+    "status": "ok",
+    "input": {},
+    "output": [
+     {
+      "at": "13:32",
+      "service": "checkout-web",
+      "version": "v5.8.1",
+      "author": "dana",
+      "summary": "Copy tweak on the order review page"
+     },
+     {
+      "at": "14:04",
+      "service": "cdn",
+      "version": "config-881",
+      "author": "marek",
+      "summary": "Lower image cache TTL from 24h to 12h"
+     },
+     {
+      "at": "14:12",
+      "service": "payments-api",
+      "version": "v2.14.0",
+      "author": "jun",
+      "summary": "Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)"
+     }
+    ]
+   },
+   {
+    "id": "tool-17",
+    "parentId": "step-13",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 7978,
+    "end": 8412,
+    "status": "ok",
+    "input": {
+     "metric": "cpu_pct",
+     "service": "postgres-payments"
+    },
+    "output": {
+     "service": "postgres-payments",
+     "metric": "cpu_pct",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 29
+      },
+      {
+       "t": "14:05",
+       "value": 28
+      },
+      {
+       "t": "14:10",
+       "value": 30
+      },
+      {
+       "t": "14:15",
+       "value": 12
+      },
+      {
+       "t": "14:20",
+       "value": 10
+      },
+      {
+       "t": "14:25",
+       "value": 9
+      },
+      {
+       "t": "14:30",
+       "value": 9
+      },
+      {
+       "t": "14:35",
+       "value": 10
+      },
+      {
+       "t": "14:40",
+       "value": 9
+      }
+     ]
+    }
+   },
+   {
+    "id": "step-18",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 4",
+    "start": 8412,
+    "end": 12186,
+    "status": "ok"
+   },
+   {
+    "id": "llm-19",
+    "parentId": "step-18",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 8412,
+    "end": 11414,
+    "status": "ok",
+    "model": "deepseek-v4-pro",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll investigate the checkout latency spike. Let me start by gathering evidence.",
+      "tool_calls": [
+       {
+        "id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+       {
+        "id": "call_00_wgDKxc4mj68dm4SRCh656241",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_01_Cl9dQRxA8yyJkzdbxeAx9195",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"error_rate_pct\"}"
+        }
+       },
+       {
+        "id": "call_02_jWcng4rnDeyAim0nCM4r7622",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_03_aV29Pe9aFL7gdmyxOo595205",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+        }
+       },
+       {
+        "id": "call_04_4OAAlp6T3jEvTeMLLcCG3782",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"postgres-payments\", \"metric\": \"db_connections_in_use\"}"
+        }
+       },
+       {
+        "id": "call_05_Qe08CGx2G6PX7Sc4GbRX0401",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"redis-sessions\", \"metric\": \"cache_hit_pct\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_wgDKxc4mj68dm4SRCh656241",
+      "content": "{\"error\":\"metrics backend timed out after 5000ms; retry\"}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_Cl9dQRxA8yyJkzdbxeAx9195",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0.1},{\"t\":\"14:05\",\"value\":0.1},{\"t\":\"14:10\",\"value\":0.1},{\"t\":\"14:15\",\"value\":0.4},{\"t\":\"14:20\",\"value\":3.2},{\"t\":\"14:25\",\"value\":6.8},{\"t\":\"14:30\",\"value\":7.4},{\"t\":\"14:35\",\"value\":7.1},{\"t\":\"14:40\",\"value\":7.2}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_jWcng4rnDeyAim0nCM4r7622",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":120},{\"t\":\"14:05\",\"value\":118},{\"t\":\"14:10\",\"value\":125},{\"t\":\"14:15\",\"value\":540},{\"t\":\"14:20\",\"value\":2410},{\"t\":\"14:25\",\"value\":3780},{\"t\":\"14:30\",\"value\":3990},{\"t\":\"14:35\",\"value\":3850},{\"t\":\"14:40\",\"value\":3920}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_aV29Pe9aFL7gdmyxOo595205",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0},{\"t\":\"14:05\",\"value\":0},{\"t\":\"14:10\",\"value\":0},{\"t\":\"14:15\",\"value\":0.9},{\"t\":\"14:20\",\"value\":5.1},{\"t\":\"14:25\",\"value\":11.2},{\"t\":\"14:30\",\"value\":12.4},{\"t\":\"14:35\",\"value\":11.9},{\"t\":\"14:40\",\"value\":12.1}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_04_4OAAlp6T3jEvTeMLLcCG3782",
+      "content": "{\"service\":\"postgres-payments\",\"metric\":\"db_connections_in_use\",\"points\":[{\"t\":\"14:00\",\"value\":36},{\"t\":\"14:05\",\"value\":35},{\"t\":\"14:10\",\"value\":38},{\"t\":\"14:15\",\"value\":7},{\"t\":\"14:20\",\"value\":7},{\"t\":\"14:25\",\"value\":7},{\"t\":\"14:30\",\"value\":7},{\"t\":\"14:35\",\"value\":7},{\"t\":\"14:40\",\"value\":7}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_05_Qe08CGx2G6PX7Sc4GbRX0401",
+      "content": "{\"service\":\"redis-sessions\",\"metric\":\"cache_hit_pct\",\"points\":[{\"t\":\"14:00\",\"value\":98},{\"t\":\"14:05\",\"value\":98},{\"t\":\"14:10\",\"value\":98},{\"t\":\"14:15\",\"value\":98},{\"t\":\"14:20\",\"value\":98},{\"t\":\"14:25\",\"value\":98},{\"t\":\"14:30\",\"value\":98},{\"t\":\"14:35\",\"value\":98},{\"t\":\"14:40\",\"value\":98}]}"
+     },
+     {
+      "role": "assistant",
+      "content": "Interesting - payments-api latency spiked at 14:15-14:20, and db_connections_in_use dropped from ~36 to 7 at 14:15. Let me retry the checkout latency and check deploys.",
+      "tool_calls": [
+       {
+        "id": "call_00_Cr4bAqH6AYWJagaKv1j74835",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"metric\": \"latency_p95_ms\", \"service\": \"checkout-web\"}"
+        }
+       },
+       {
+        "id": "call_01_EG06Xq8nd0lZ8EHgJVR60123",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_02_xVj2uzUFmU44mERgiso41026",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"metric\": \"cpu_pct\", \"service\": \"postgres-payments\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_Cr4bAqH6AYWJagaKv1j74835",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":310},{\"t\":\"14:05\",\"value\":305},{\"t\":\"14:10\",\"value\":320},{\"t\":\"14:15\",\"value\":690},{\"t\":\"14:20\",\"value\":2840},{\"t\":\"14:25\",\"value\":4120},{\"t\":\"14:30\",\"value\":4380},{\"t\":\"14:35\",\"value\":4210},{\"t\":\"14:40\",\"value\":4300}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_EG06Xq8nd0lZ8EHgJVR60123",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_xVj2uzUFmU44mERgiso41026",
+      "content": "{\"service\":\"postgres-payments\",\"metric\":\"cpu_pct\",\"points\":[{\"t\":\"14:00\",\"value\":29},{\"t\":\"14:05\",\"value\":28},{\"t\":\"14:10\",\"value\":30},{\"t\":\"14:15\",\"value\":12},{\"t\":\"14:20\",\"value\":10},{\"t\":\"14:25\",\"value\":9},{\"t\":\"14:30\",\"value\":9},{\"t\":\"14:35\",\"value\":10},{\"t\":\"14:40\",\"value\":9}]}"
+     }
+    ],
+    "output": {
+     "text": "The deploy at 14:12 to payments-api changed the DB pool size from hardcoded 50 to POOL_MAX default 5. This matches the db_connections_in_use dropping from ~36 to 7 at 14:15. Let me confirm with logs and the runbook.",
+     "tool_calls": [
+      {
+       "name": "search_logs",
+       "arguments": "{\"service\": \"payments-api\", \"query\": \"pool\"}"
+      },
+      {
+       "name": "read_runbook",
+       "arguments": "{\"topic\": \"db-connection-exhaustion\"}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 2266,
+     "output": 158,
+     "cached": 1792
+    }
+   },
+   {
+    "id": "tool-20",
+    "parentId": "step-18",
+    "kind": "tool",
+    "name": "search_logs",
+    "start": 11414,
+    "end": 12186,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "query": "pool"
+    },
+    "output": [
+     {
+      "at": "14:12",
+      "service": "payments-api",
+      "level": "info",
+      "msg": "started v2.14.0, db pool max=5"
+     },
+     {
+      "at": "14:14",
+      "service": "payments-api",
+      "level": "warn",
+      "msg": "db pool saturated: 5/5 in use, 41 waiting"
+     }
+    ]
+   },
+   {
+    "id": "tool-21",
+    "parentId": "step-18",
+    "kind": "tool",
+    "name": "read_runbook",
+    "start": 11414,
+    "end": 11563,
+    "status": "ok",
+    "input": {
+     "topic": "db-connection-exhaustion"
+    },
+    "output": "Symptoms: app latency up while database CPU and query times are flat or down; 'timeout acquiring connection' errors. Mitigation: roll back the service or raise its pool size. Postgres max_connections here is 200, so 50 per service is safe."
+   },
+   {
+    "id": "step-22",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 5",
+    "start": 12186,
+    "end": 15197,
+    "status": "ok"
+   },
+   {
+    "id": "llm-23",
+    "parentId": "step-22",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 12186,
+    "end": 15197,
+    "status": "ok",
+    "model": "deepseek-v4-pro",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll investigate the checkout latency spike. Let me start by gathering evidence.",
+      "tool_calls": [
+       {
+        "id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_2CUqSIW2fmlPj4qzB4lU1100",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+       {
+        "id": "call_00_wgDKxc4mj68dm4SRCh656241",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_01_Cl9dQRxA8yyJkzdbxeAx9195",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"error_rate_pct\"}"
+        }
+       },
+       {
+        "id": "call_02_jWcng4rnDeyAim0nCM4r7622",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_03_aV29Pe9aFL7gdmyxOo595205",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+        }
+       },
+       {
+        "id": "call_04_4OAAlp6T3jEvTeMLLcCG3782",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"postgres-payments\", \"metric\": \"db_connections_in_use\"}"
+        }
+       },
+       {
+        "id": "call_05_Qe08CGx2G6PX7Sc4GbRX0401",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"redis-sessions\", \"metric\": \"cache_hit_pct\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_wgDKxc4mj68dm4SRCh656241",
+      "content": "{\"error\":\"metrics backend timed out after 5000ms; retry\"}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_Cl9dQRxA8yyJkzdbxeAx9195",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0.1},{\"t\":\"14:05\",\"value\":0.1},{\"t\":\"14:10\",\"value\":0.1},{\"t\":\"14:15\",\"value\":0.4},{\"t\":\"14:20\",\"value\":3.2},{\"t\":\"14:25\",\"value\":6.8},{\"t\":\"14:30\",\"value\":7.4},{\"t\":\"14:35\",\"value\":7.1},{\"t\":\"14:40\",\"value\":7.2}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_jWcng4rnDeyAim0nCM4r7622",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":120},{\"t\":\"14:05\",\"value\":118},{\"t\":\"14:10\",\"value\":125},{\"t\":\"14:15\",\"value\":540},{\"t\":\"14:20\",\"value\":2410},{\"t\":\"14:25\",\"value\":3780},{\"t\":\"14:30\",\"value\":3990},{\"t\":\"14:35\",\"value\":3850},{\"t\":\"14:40\",\"value\":3920}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_aV29Pe9aFL7gdmyxOo595205",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0},{\"t\":\"14:05\",\"value\":0},{\"t\":\"14:10\",\"value\":0},{\"t\":\"14:15\",\"value\":0.9},{\"t\":\"14:20\",\"value\":5.1},{\"t\":\"14:25\",\"value\":11.2},{\"t\":\"14:30\",\"value\":12.4},{\"t\":\"14:35\",\"value\":11.9},{\"t\":\"14:40\",\"value\":12.1}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_04_4OAAlp6T3jEvTeMLLcCG3782",
+      "content": "{\"service\":\"postgres-payments\",\"metric\":\"db_connections_in_use\",\"points\":[{\"t\":\"14:00\",\"value\":36},{\"t\":\"14:05\",\"value\":35},{\"t\":\"14:10\",\"value\":38},{\"t\":\"14:15\",\"value\":7},{\"t\":\"14:20\",\"value\":7},{\"t\":\"14:25\",\"value\":7},{\"t\":\"14:30\",\"value\":7},{\"t\":\"14:35\",\"value\":7},{\"t\":\"14:40\",\"value\":7}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_05_Qe08CGx2G6PX7Sc4GbRX0401",
+      "content": "{\"service\":\"redis-sessions\",\"metric\":\"cache_hit_pct\",\"points\":[{\"t\":\"14:00\",\"value\":98},{\"t\":\"14:05\",\"value\":98},{\"t\":\"14:10\",\"value\":98},{\"t\":\"14:15\",\"value\":98},{\"t\":\"14:20\",\"value\":98},{\"t\":\"14:25\",\"value\":98},{\"t\":\"14:30\",\"value\":98},{\"t\":\"14:35\",\"value\":98},{\"t\":\"14:40\",\"value\":98}]}"
+     },
+     {
+      "role": "assistant",
+      "content": "Interesting - payments-api latency spiked at 14:15-14:20, and db_connections_in_use dropped from ~36 to 7 at 14:15. Let me retry the checkout latency and check deploys.",
+      "tool_calls": [
+       {
+        "id": "call_00_Cr4bAqH6AYWJagaKv1j74835",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"metric\": \"latency_p95_ms\", \"service\": \"checkout-web\"}"
+        }
+       },
+       {
+        "id": "call_01_EG06Xq8nd0lZ8EHgJVR60123",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_02_xVj2uzUFmU44mERgiso41026",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"metric\": \"cpu_pct\", \"service\": \"postgres-payments\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_Cr4bAqH6AYWJagaKv1j74835",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":310},{\"t\":\"14:05\",\"value\":305},{\"t\":\"14:10\",\"value\":320},{\"t\":\"14:15\",\"value\":690},{\"t\":\"14:20\",\"value\":2840},{\"t\":\"14:25\",\"value\":4120},{\"t\":\"14:30\",\"value\":4380},{\"t\":\"14:35\",\"value\":4210},{\"t\":\"14:40\",\"value\":4300}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_EG06Xq8nd0lZ8EHgJVR60123",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_xVj2uzUFmU44mERgiso41026",
+      "content": "{\"service\":\"postgres-payments\",\"metric\":\"cpu_pct\",\"points\":[{\"t\":\"14:00\",\"value\":29},{\"t\":\"14:05\",\"value\":28},{\"t\":\"14:10\",\"value\":30},{\"t\":\"14:15\",\"value\":12},{\"t\":\"14:20\",\"value\":10},{\"t\":\"14:25\",\"value\":9},{\"t\":\"14:30\",\"value\":9},{\"t\":\"14:35\",\"value\":10},{\"t\":\"14:40\",\"value\":9}]}"
+     },
+     {
+      "role": "assistant",
+      "content": "The deploy at 14:12 to payments-api changed the DB pool size from hardcoded 50 to POOL_MAX default 5. This matches the db_connections_in_use dropping from ~36 to 7 at 14:15. Let me confirm with logs and the runbook.",
+      "tool_calls": [
+       {
+        "id": "call_00_BxCraNJKNpwPxJjXmfMG1157",
+        "type": "function",
+        "function": {
+         "name": "search_logs",
+         "arguments": "{\"service\": \"payments-api\", \"query\": \"pool\"}"
+        }
+       },
+       {
+        "id": "call_01_kAaXKVIbT6FjYvw7LJH75393",
+        "type": "function",
+        "function": {
+         "name": "read_runbook",
+         "arguments": "{\"topic\": \"db-connection-exhaustion\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_BxCraNJKNpwPxJjXmfMG1157",
+      "content": "[{\"at\":\"14:12\",\"service\":\"payments-api\",\"level\":\"info\",\"msg\":\"started v2.14.0, db pool max=5\"},{\"at\":\"14:14\",\"service\":\"payments-api\",\"level\":\"warn\",\"msg\":\"db pool saturated: 5/5 in use, 41 waiting\"}]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_kAaXKVIbT6FjYvw7LJH75393",
+      "content": "\"Symptoms: app latency up while database CPU and query times are flat or down; 'timeout acquiring connection' errors. Mitigation: roll back the service or raise its pool size. Postgres max_connections here is 200, so 50 per service is safe.\""
+     }
+    ],
+    "output": "Root cause: the 14:12 deploy of `payments-api` v2.14.0 (author jun) changed the DB connection pool size from a hardcoded 50 to `POOL_MAX` defaulting to 5. Evidence: `db_connections_in_use` dropped from ~36 to 7 at 14:15, log shows \"db pool max=5\" and \"db pool saturated: 5/5 in use, 41 waiting\", while postgres CPU stayed flat (~10%) — classic connection exhaustion, not DB load.\n\nImmediate action: roll back `payments-api` to v2.13.x (or set `POOL_MAX=50` and redeploy). Postgres max_connections is 200, so 50 is safe.",
+    "usage": {
+     "input": 2569,
+     "output": 163,
+     "cached": 2304
+    }
+   }
+  ]
+ },
+ {
+  "id": "flash-clean",
+  "name": "Flash, healthy tools",
+  "task": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now.",
+  "model": "deepseek-flash",
+  "note": "Same task with no injected failure.",
+  "createdAt": "2026-11-02T04:03:04.083Z",
+  "source": "recorded",
+  "spans": [
+   {
+    "id": "run-1",
+    "parentId": null,
+    "kind": "agent",
+    "name": "agent.run",
+    "start": 0,
+    "end": 7827,
+    "status": "ok",
+    "input": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now.",
+    "model": "deepseek-flash",
+    "output": "**Root cause:** payments-api deploy v2.14.0 at 14:12 (jun) refactored DB config so pool size reads `POOL_MAX`, defaulting to 5 instead of the previous hardcoded 50.\n\n**Evidence:**\n- Deploy log: `started v2.14.0, db pool max=5`\n- `db_connections_in_use` fell 34 → exactly 5 at 14:15 and stayed flat\n- `db pool saturated: 5/5 in use, 41 waiting` (14:14); `timeout acquiring db connection after 2000ms` (312/min by 14:21)\n- payments-api p95 125ms → 3920ms; checkout-web 320ms → 4300ms; error rate 0 → 12.1%\n- Postgres itself is healthy (connections low, not exhausted) — this is app-side pool starvation\n\n**Immediate action:** Roll back payments-api (`deploy rollback payments-api`, ~2 min, no migration concerns). Then re-deploy with `POOL_MAX=50` set explicitly."
+   },
+   {
+    "id": "step-2",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 1",
+    "start": 0,
+    "end": 1323,
+    "status": "ok"
+   },
+   {
+    "id": "llm-3",
+    "parentId": "step-2",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 0,
+    "end": 1136,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     }
+    ],
+    "output": {
+     "text": "I'll start by gathering evidence across services and deploys.",
+     "tool_calls": [
+      {
+       "name": "list_services",
+       "arguments": "{}"
+      },
+      {
+       "name": "get_deploys",
+       "arguments": "{}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 649,
+     "output": 47,
+     "cached": 512
+    }
+   },
+   {
+    "id": "tool-4",
+    "parentId": "step-2",
+    "kind": "tool",
+    "name": "list_services",
+    "start": 1136,
+    "end": 1229,
+    "status": "ok",
+    "input": {},
+    "output": [
+     "checkout-web",
+     "payments-api",
+     "postgres-payments",
+     "redis-sessions",
+     "cdn"
+    ]
+   },
+   {
+    "id": "tool-5",
+    "parentId": "step-2",
+    "kind": "tool",
+    "name": "get_deploys",
+    "start": 1136,
+    "end": 1323,
+    "status": "ok",
+    "input": {},
+    "output": [
+     {
+      "at": "13:32",
+      "service": "checkout-web",
+      "version": "v5.8.1",
+      "author": "dana",
+      "summary": "Copy tweak on the order review page"
+     },
+     {
+      "at": "14:04",
+      "service": "cdn",
+      "version": "config-881",
+      "author": "marek",
+      "summary": "Lower image cache TTL from 24h to 12h"
+     },
+     {
+      "at": "14:12",
+      "service": "payments-api",
+      "version": "v2.14.0",
+      "author": "jun",
+      "summary": "Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)"
+     }
+    ]
+   },
+   {
+    "id": "step-6",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 2",
+    "start": 1323,
+    "end": 3366,
+    "status": "ok"
+   },
+   {
+    "id": "llm-7",
+    "parentId": "step-6",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 1323,
+    "end": 2938,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll start by gathering evidence across services and deploys.",
+      "tool_calls": [
+       {
+        "id": "call_00_60WkCW4FuxVKJhwHqVUc4053",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_01_nGL4xSZsWmx4F3FmWnp08378",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_60WkCW4FuxVKJhwHqVUc4053",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_nGL4xSZsWmx4F3FmWnp08378",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     }
+    ],
+    "output": {
+     "text": "A suspicious deploy at 14:12 on payments-api. Let me check metrics and logs.",
+     "tool_calls": [
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"db_connections_in_use\"}"
+      },
+      {
+       "name": "get_metrics",
+       "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 866,
+     "output": 231,
+     "cached": 640
+    }
+   },
+   {
+    "id": "tool-8",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 2938,
+    "end": 3365,
+    "status": "ok",
+    "input": {
+     "service": "checkout-web",
+     "metric": "latency_p95_ms"
+    },
+    "output": {
+     "service": "checkout-web",
+     "metric": "latency_p95_ms",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 310
+      },
+      {
+       "t": "14:05",
+       "value": 305
+      },
+      {
+       "t": "14:10",
+       "value": 320
+      },
+      {
+       "t": "14:15",
+       "value": 690
+      },
+      {
+       "t": "14:20",
+       "value": 2840
+      },
+      {
+       "t": "14:25",
+       "value": 4120
+      },
+      {
+       "t": "14:30",
+       "value": 4380
+      },
+      {
+       "t": "14:35",
+       "value": 4210
+      },
+      {
+       "t": "14:40",
+       "value": 4300
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-9",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 2938,
+    "end": 3366,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "latency_p95_ms"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "latency_p95_ms",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 120
+      },
+      {
+       "t": "14:05",
+       "value": 118
+      },
+      {
+       "t": "14:10",
+       "value": 125
+      },
+      {
+       "t": "14:15",
+       "value": 540
+      },
+      {
+       "t": "14:20",
+       "value": 2410
+      },
+      {
+       "t": "14:25",
+       "value": 3780
+      },
+      {
+       "t": "14:30",
+       "value": 3990
+      },
+      {
+       "t": "14:35",
+       "value": 3850
+      },
+      {
+       "t": "14:40",
+       "value": 3920
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-10",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 2938,
+    "end": 3366,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "db_connections_in_use"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "db_connections_in_use",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 34
+      },
+      {
+       "t": "14:05",
+       "value": 33
+      },
+      {
+       "t": "14:10",
+       "value": 36
+      },
+      {
+       "t": "14:15",
+       "value": 5
+      },
+      {
+       "t": "14:20",
+       "value": 5
+      },
+      {
+       "t": "14:25",
+       "value": 5
+      },
+      {
+       "t": "14:30",
+       "value": 5
+      },
+      {
+       "t": "14:35",
+       "value": 5
+      },
+      {
+       "t": "14:40",
+       "value": 5
+      }
+     ]
+    }
+   },
+   {
+    "id": "tool-11",
+    "parentId": "step-6",
+    "kind": "tool",
+    "name": "get_metrics",
+    "start": 2938,
+    "end": 3366,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "metric": "error_rate_pct"
+    },
+    "output": {
+     "service": "payments-api",
+     "metric": "error_rate_pct",
+     "points": [
+      {
+       "t": "14:00",
+       "value": 0
+      },
+      {
+       "t": "14:05",
+       "value": 0
+      },
+      {
+       "t": "14:10",
+       "value": 0
+      },
+      {
+       "t": "14:15",
+       "value": 0.9
+      },
+      {
+       "t": "14:20",
+       "value": 5.1
+      },
+      {
+       "t": "14:25",
+       "value": 11.2
+      },
+      {
+       "t": "14:30",
+       "value": 12.4
+      },
+      {
+       "t": "14:35",
+       "value": 11.9
+      },
+      {
+       "t": "14:40",
+       "value": 12.1
+      }
+     ]
+    }
+   },
+   {
+    "id": "step-12",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 3",
+    "start": 3366,
+    "end": 5507,
+    "status": "ok"
+   },
+   {
+    "id": "llm-13",
+    "parentId": "step-12",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 3366,
+    "end": 4739,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll start by gathering evidence across services and deploys.",
+      "tool_calls": [
+       {
+        "id": "call_00_60WkCW4FuxVKJhwHqVUc4053",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_01_nGL4xSZsWmx4F3FmWnp08378",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_60WkCW4FuxVKJhwHqVUc4053",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_nGL4xSZsWmx4F3FmWnp08378",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     },
+     {
+      "role": "assistant",
+      "content": "A suspicious deploy at 14:12 on payments-api. Let me check metrics and logs.",
+      "tool_calls": [
+       {
+        "id": "call_00_rs5433B7aHnLdqopUOki3516",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_01_48qvEOrgd5NeeDdmRGOl3790",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_02_4X4T7Fse1y7D0niEAlmC4762",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"db_connections_in_use\"}"
+        }
+       },
+       {
+        "id": "call_03_954lyhB2bTdPMOckc3sc5915",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_rs5433B7aHnLdqopUOki3516",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":310},{\"t\":\"14:05\",\"value\":305},{\"t\":\"14:10\",\"value\":320},{\"t\":\"14:15\",\"value\":690},{\"t\":\"14:20\",\"value\":2840},{\"t\":\"14:25\",\"value\":4120},{\"t\":\"14:30\",\"value\":4380},{\"t\":\"14:35\",\"value\":4210},{\"t\":\"14:40\",\"value\":4300}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_48qvEOrgd5NeeDdmRGOl3790",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":120},{\"t\":\"14:05\",\"value\":118},{\"t\":\"14:10\",\"value\":125},{\"t\":\"14:15\",\"value\":540},{\"t\":\"14:20\",\"value\":2410},{\"t\":\"14:25\",\"value\":3780},{\"t\":\"14:30\",\"value\":3990},{\"t\":\"14:35\",\"value\":3850},{\"t\":\"14:40\",\"value\":3920}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_4X4T7Fse1y7D0niEAlmC4762",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"db_connections_in_use\",\"points\":[{\"t\":\"14:00\",\"value\":34},{\"t\":\"14:05\",\"value\":33},{\"t\":\"14:10\",\"value\":36},{\"t\":\"14:15\",\"value\":5},{\"t\":\"14:20\",\"value\":5},{\"t\":\"14:25\",\"value\":5},{\"t\":\"14:30\",\"value\":5},{\"t\":\"14:35\",\"value\":5},{\"t\":\"14:40\",\"value\":5}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_954lyhB2bTdPMOckc3sc5915",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0},{\"t\":\"14:05\",\"value\":0},{\"t\":\"14:10\",\"value\":0},{\"t\":\"14:15\",\"value\":0.9},{\"t\":\"14:20\",\"value\":5.1},{\"t\":\"14:25\",\"value\":11.2},{\"t\":\"14:30\",\"value\":12.4},{\"t\":\"14:35\",\"value\":11.9},{\"t\":\"14:40\",\"value\":12.1}]}"
+     }
+    ],
+    "output": {
+     "text": "Pool dropped from ~34 to exactly 5 at 14:15 — matching the new default. Let me confirm with logs and the runbook.",
+     "tool_calls": [
+      {
+       "name": "search_logs",
+       "arguments": "{\"service\": \"payments-api\", \"query\": \"pool\"}"
+      },
+      {
+       "name": "search_logs",
+       "arguments": "{\"service\": \"payments-api\", \"query\": \"timeout\"}"
+      },
+      {
+       "name": "read_runbook",
+       "arguments": "{\"topic\": \"db-connection-exhaustion\"}"
+      },
+      {
+       "name": "read_runbook",
+       "arguments": "{\"topic\": \"rollback\"}"
+      }
+     ]
+    },
+    "usage": {
+     "input": 1587,
+     "output": 197,
+     "cached": 1024
+    }
+   },
+   {
+    "id": "tool-14",
+    "parentId": "step-12",
+    "kind": "tool",
+    "name": "search_logs",
+    "start": 4739,
+    "end": 5507,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "query": "pool"
+    },
+    "output": [
+     {
+      "at": "14:12",
+      "service": "payments-api",
+      "level": "info",
+      "msg": "started v2.14.0, db pool max=5"
+     },
+     {
+      "at": "14:14",
+      "service": "payments-api",
+      "level": "warn",
+      "msg": "db pool saturated: 5/5 in use, 41 waiting"
+     }
+    ]
+   },
+   {
+    "id": "tool-15",
+    "parentId": "step-12",
+    "kind": "tool",
+    "name": "search_logs",
+    "start": 4739,
+    "end": 5507,
+    "status": "ok",
+    "input": {
+     "service": "payments-api",
+     "query": "timeout"
+    },
+    "output": [
+     {
+      "at": "14:16",
+      "service": "payments-api",
+      "level": "error",
+      "msg": "timeout acquiring db connection after 2000ms"
+     },
+     {
+      "at": "14:21",
+      "service": "payments-api",
+      "level": "error",
+      "msg": "timeout acquiring db connection after 2000ms (312 in last minute)"
+     }
+    ]
+   },
+   {
+    "id": "tool-16",
+    "parentId": "step-12",
+    "kind": "tool",
+    "name": "read_runbook",
+    "start": 4739,
+    "end": 4885,
+    "status": "ok",
+    "input": {
+     "topic": "db-connection-exhaustion"
+    },
+    "output": "Symptoms: app latency up while database CPU and query times are flat or down; 'timeout acquiring connection' errors. Mitigation: roll back the service or raise its pool size. Postgres max_connections here is 200, so 50 per service is safe."
+   },
+   {
+    "id": "tool-17",
+    "parentId": "step-12",
+    "kind": "tool",
+    "name": "read_runbook",
+    "start": 4739,
+    "end": 4885,
+    "status": "ok",
+    "input": {
+     "topic": "rollback"
+    },
+    "output": "Run `deploy rollback <service>`. Takes about 2 minutes. No migration concerns unless the deploy notes mention one."
+   },
+   {
+    "id": "step-18",
+    "parentId": "run-1",
+    "kind": "agent",
+    "name": "step 4",
+    "start": 5508,
+    "end": 7827,
+    "status": "ok"
+   },
+   {
+    "id": "llm-19",
+    "parentId": "step-18",
+    "kind": "llm",
+    "name": "chat.completion",
+    "start": 5508,
+    "end": 7827,
+    "status": "ok",
+    "model": "deepseek-flash",
+    "input": [
+     {
+      "role": "system",
+      "content": "You are an on-call SRE investigating a production incident at a fictional online store. Use the tools to gather evidence before you conclude; don't guess. When several checks are independent, call the tools in parallel. If a tool fails transiently, retry it. Once you have the root cause, reply without calling a tool: name the cause, cite the evidence, and give the immediate action, in under 120 words. Only answer questions about this incident environment."
+     },
+     {
+      "role": "user",
+      "content": "Checkout latency spiked around 14:20 today. Find the root cause and recommend what to do right now."
+     },
+     {
+      "role": "assistant",
+      "content": "I'll start by gathering evidence across services and deploys.",
+      "tool_calls": [
+       {
+        "id": "call_00_60WkCW4FuxVKJhwHqVUc4053",
+        "type": "function",
+        "function": {
+         "name": "list_services",
+         "arguments": "{}"
+        }
+       },
+       {
+        "id": "call_01_nGL4xSZsWmx4F3FmWnp08378",
+        "type": "function",
+        "function": {
+         "name": "get_deploys",
+         "arguments": "{}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_60WkCW4FuxVKJhwHqVUc4053",
+      "content": "[\"checkout-web\",\"payments-api\",\"postgres-payments\",\"redis-sessions\",\"cdn\"]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_nGL4xSZsWmx4F3FmWnp08378",
+      "content": "[{\"at\":\"13:32\",\"service\":\"checkout-web\",\"version\":\"v5.8.1\",\"author\":\"dana\",\"summary\":\"Copy tweak on the order review page\"},{\"at\":\"14:04\",\"service\":\"cdn\",\"version\":\"config-881\",\"author\":\"marek\",\"summary\":\"Lower image cache TTL from 24h to 12h\"},{\"at\":\"14:12\",\"service\":\"payments-api\",\"version\":\"v2.14.0\",\"author\":\"jun\",\"summary\":\"Refactor DB config; pool size now read from POOL_MAX (default 5, was hardcoded 50)\"}]"
+     },
+     {
+      "role": "assistant",
+      "content": "A suspicious deploy at 14:12 on payments-api. Let me check metrics and logs.",
+      "tool_calls": [
+       {
+        "id": "call_00_rs5433B7aHnLdqopUOki3516",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"checkout-web\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_01_48qvEOrgd5NeeDdmRGOl3790",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"latency_p95_ms\"}"
+        }
+       },
+       {
+        "id": "call_02_4X4T7Fse1y7D0niEAlmC4762",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"db_connections_in_use\"}"
+        }
+       },
+       {
+        "id": "call_03_954lyhB2bTdPMOckc3sc5915",
+        "type": "function",
+        "function": {
+         "name": "get_metrics",
+         "arguments": "{\"service\": \"payments-api\", \"metric\": \"error_rate_pct\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_rs5433B7aHnLdqopUOki3516",
+      "content": "{\"service\":\"checkout-web\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":310},{\"t\":\"14:05\",\"value\":305},{\"t\":\"14:10\",\"value\":320},{\"t\":\"14:15\",\"value\":690},{\"t\":\"14:20\",\"value\":2840},{\"t\":\"14:25\",\"value\":4120},{\"t\":\"14:30\",\"value\":4380},{\"t\":\"14:35\",\"value\":4210},{\"t\":\"14:40\",\"value\":4300}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_48qvEOrgd5NeeDdmRGOl3790",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"latency_p95_ms\",\"points\":[{\"t\":\"14:00\",\"value\":120},{\"t\":\"14:05\",\"value\":118},{\"t\":\"14:10\",\"value\":125},{\"t\":\"14:15\",\"value\":540},{\"t\":\"14:20\",\"value\":2410},{\"t\":\"14:25\",\"value\":3780},{\"t\":\"14:30\",\"value\":3990},{\"t\":\"14:35\",\"value\":3850},{\"t\":\"14:40\",\"value\":3920}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_4X4T7Fse1y7D0niEAlmC4762",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"db_connections_in_use\",\"points\":[{\"t\":\"14:00\",\"value\":34},{\"t\":\"14:05\",\"value\":33},{\"t\":\"14:10\",\"value\":36},{\"t\":\"14:15\",\"value\":5},{\"t\":\"14:20\",\"value\":5},{\"t\":\"14:25\",\"value\":5},{\"t\":\"14:30\",\"value\":5},{\"t\":\"14:35\",\"value\":5},{\"t\":\"14:40\",\"value\":5}]}"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_954lyhB2bTdPMOckc3sc5915",
+      "content": "{\"service\":\"payments-api\",\"metric\":\"error_rate_pct\",\"points\":[{\"t\":\"14:00\",\"value\":0},{\"t\":\"14:05\",\"value\":0},{\"t\":\"14:10\",\"value\":0},{\"t\":\"14:15\",\"value\":0.9},{\"t\":\"14:20\",\"value\":5.1},{\"t\":\"14:25\",\"value\":11.2},{\"t\":\"14:30\",\"value\":12.4},{\"t\":\"14:35\",\"value\":11.9},{\"t\":\"14:40\",\"value\":12.1}]}"
+     },
+     {
+      "role": "assistant",
+      "content": "Pool dropped from ~34 to exactly 5 at 14:15 — matching the new default. Let me confirm with logs and the runbook.",
+      "tool_calls": [
+       {
+        "id": "call_00_dYEqnJOcLYltDXRddXDI6827",
+        "type": "function",
+        "function": {
+         "name": "search_logs",
+         "arguments": "{\"service\": \"payments-api\", \"query\": \"pool\"}"
+        }
+       },
+       {
+        "id": "call_01_Yq9ufI8Ch4reklI4053p1506",
+        "type": "function",
+        "function": {
+         "name": "search_logs",
+         "arguments": "{\"service\": \"payments-api\", \"query\": \"timeout\"}"
+        }
+       },
+       {
+        "id": "call_02_NGuKGh9FjFT8kamWvFXg8626",
+        "type": "function",
+        "function": {
+         "name": "read_runbook",
+         "arguments": "{\"topic\": \"db-connection-exhaustion\"}"
+        }
+       },
+       {
+        "id": "call_03_EyXkbH8zhMOpP1u3wE9y0799",
+        "type": "function",
+        "function": {
+         "name": "read_runbook",
+         "arguments": "{\"topic\": \"rollback\"}"
+        }
+       }
+      ]
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_00_dYEqnJOcLYltDXRddXDI6827",
+      "content": "[{\"at\":\"14:12\",\"service\":\"payments-api\",\"level\":\"info\",\"msg\":\"started v2.14.0, db pool max=5\"},{\"at\":\"14:14\",\"service\":\"payments-api\",\"level\":\"warn\",\"msg\":\"db pool saturated: 5/5 in use, 41 waiting\"}]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_01_Yq9ufI8Ch4reklI4053p1506",
+      "content": "[{\"at\":\"14:16\",\"service\":\"payments-api\",\"level\":\"error\",\"msg\":\"timeout acquiring db connection after 2000ms\"},{\"at\":\"14:21\",\"service\":\"payments-api\",\"level\":\"error\",\"msg\":\"timeout acquiring db connection after 2000ms (312 in last minute)\"}]"
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_02_NGuKGh9FjFT8kamWvFXg8626",
+      "content": "\"Symptoms: app latency up while database CPU and query times are flat or down; 'timeout acquiring connection' errors. Mitigation: roll back the service or raise its pool size. Postgres max_connections here is 200, so 50 per service is safe.\""
+     },
+     {
+      "role": "tool",
+      "tool_call_id": "call_03_EyXkbH8zhMOpP1u3wE9y0799",
+      "content": "\"Run `deploy rollback <service>`. Takes about 2 minutes. No migration concerns unless the deploy notes mention one.\""
+     }
+    ],
+    "output": "**Root cause:** payments-api deploy v2.14.0 at 14:12 (jun) refactored DB config so pool size reads `POOL_MAX`, defaulting to 5 instead of the previous hardcoded 50.\n\n**Evidence:**\n- Deploy log: `started v2.14.0, db pool max=5`\n- `db_connections_in_use` fell 34 → exactly 5 at 14:15 and stayed flat\n- `db pool saturated: 5/5 in use, 41 waiting` (14:14); `timeout acquiring db connection after 2000ms` (312/min by 14:21)\n- payments-api p95 125ms → 3920ms; checkout-web 320ms → 4300ms; error rate 0 → 12.1%\n- Postgres itself is healthy (connections low, not exhausted) — this is app-side pool starvation\n\n**Immediate action:** Roll back payments-api (`deploy rollback payments-api`, ~2 min, no migration concerns). Then re-deploy with `POOL_MAX=50` set explicitly.",
+    "usage": {
+     "input": 2037,
+     "output": 239,
+     "cached": 1664
+    }
+   }
+  ]
+ }
+]
