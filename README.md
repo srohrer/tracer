@@ -2,7 +2,7 @@
 
 **See what your agent actually did.** A timeline for LLM agent runs: every model call and tool call as a span, with latency, tokens, cost and failures. Watch a run stream in live, replay it, inspect any step, and compare two runs side by side.
 
-<!-- Live demo link goes here once deployed -->
+**Live demo: [tracer.srohrer.dev](https://tracer.srohrer.dev)**
 
 ## What it does
 
